@@ -11,6 +11,7 @@ try:
 except ImportError:
     # Python 3
     from tkinter import *
+    from tkinter import messagebox
     from configparser import ConfigParser
 from PIL import Image, ImageTk
 from math import sqrt
@@ -18,11 +19,14 @@ from time import time, sleep
 from random import shuffle
 from os import path
 try:
+    # See error for using latest pyglet version:
+    # https://stackoverflow.com/questions/57055772/pyglet-media-codecs-wave-waveformatexception-file-does-not-start-with-riff-id
+    # pip install pyglet==1.3.2
     from pyglet import media
-    SOUND = True
+    sound_mode = True
 except ImportError:
     media = None
-    SOUND = False
+    sound_mode = False
 
 # Parametrization - BEGIN
 # (these constants can be changed)
@@ -72,16 +76,14 @@ SQUARE = [[0, 0, 189, 189],      # square 0
           [410, 410, 599, 599]]  # square 8
 
 # if a .MP3 file doesn't exist, corresponding sound will no be played
-SOUND = {}
-SOUND['start']= SOUND and path.exists('shall_we_play_a_game.mp3')
-SOUND['beep'] = SOUND and path.exists('computer_error.mp3')
-SOUND['computer turn'] = SOUND and path.exists('bike_horn.mp3')
-SOUND['computer wins 1'] = SOUND and path.exists('pig_snort.ogg')
-SOUND['computer wins 2'] = SOUND and path.exists('evil_laugh.mp3')
-SOUND['player wins'] = SOUND and path.exists('nice_one.mp3')
-SOUND['nobody wins'] = SOUND and path.exists('cow_moo.mp3')
-SOUND['move'] = SOUND and path.exists('punch_or_whack.mp3')
-
+SOUND = {'start': sound_mode and path.exists('shall_we_play_a_game.mp3'),
+         'beep': sound_mode and path.exists('computer_error.mp3'),
+         'computer turn': sound_mode and path.exists('bike_horn.mp3'),
+         'computer wins 1': sound_mode and path.exists('pig_snort.mp3'),
+         'computer wins 2': sound_mode and path.exists('evil_laugh.mp3'),
+         'player wins': sound_mode and path.exists('nice_one.mp3'),
+         'nobody wins': sound_mode and path.exists('cow_moo.mp3'),
+         'move': sound_mode and path.exists('punch_or_whack.mp3')}
 
 WIN = [[0, 1, 2], [3, 4, 5], [6, 7, 8],   # 3 horizontals
        [0, 3, 6], [1, 4, 7], [2, 5, 8],   # 3 verticals
@@ -163,6 +165,7 @@ class Game(Frame):
         self.lastSquarePlayed = -1
         self.winner = set([])
         self.winStatus = ''
+        self.closeProgram = False
         self.readConfig()
         self.initialization()
         self.draw(False)
@@ -174,11 +177,9 @@ class Game(Frame):
         # called by pressing ESC -> event parameter is given
         # called by Window Manager -> none
         if messagebox.askokcancel("Tic-Tac-Toe", "Do you want to quit?"):
-            # Note: self.root.destroy() may produce error
-            # in PyCharm environment because of unfinished self.root.update()
-            # of self.root.update_idletasks() calls
-            self.root.destroy()  # use in IDLE environment
-            # self.root.quit()   # use in PyCharm environment
+            # prevent future screen update
+            self.closeProgram = True
+            self.root.destroy()
             sys.exit(0)
 
     def initialization(self):
@@ -211,6 +212,8 @@ class Game(Frame):
         return
 
     def title(self):
+        if self.closeProgram:
+            return
         t = 'Tic-Tac-Toe  ' + str(self.scorePlayer) + ' : ' + str(self.scoreComputer) + '  ['
         if not self.sound:
             t += 'no '
@@ -223,6 +226,8 @@ class Game(Frame):
         return
 
     def keyboard(self, event):
+        if self.closeProgram:
+            return
         if event.char == 's' or event.char == 'S':
             # letter s: toggle sound / no sound
             self.sound = not self.sound
@@ -238,6 +243,8 @@ class Game(Frame):
         return
 
     def draw(self, repeat=False):
+        if self.closeProgram:
+            return
         self.display.delete('all')
         self.display.create_image(0, 0, image=self.image, anchor=NW, tags='IMG')
         for s in range(9):
